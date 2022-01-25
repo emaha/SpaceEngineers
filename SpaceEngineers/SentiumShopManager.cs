@@ -13,6 +13,7 @@ namespace SpaceEngineersSentiumShopManager
         IMyTextPanel LCDOutput;
         IMyTextPanel LCDController;
         IMyTextPanel LCDError;
+        IMyTextPanel LCDTradelog;
 
         IMyCargoContainer Input;
         IMyCargoContainer Output;
@@ -23,9 +24,10 @@ namespace SpaceEngineersSentiumShopManager
         IMyInventory vaultInventory;
 
         IMyTerminalBlock mySoundBlock;
+        IMySensorBlock sensor;
 
         string errorText = string.Empty;
-        string tradeLog = "Trade log:\n";
+        string tradeLog = string.Empty;
         const string sentiumName = "SP_Gift";
         int currentIndex = 0;
 
@@ -90,15 +92,20 @@ namespace SpaceEngineersSentiumShopManager
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update100;
-
             mySoundBlock = GridTerminalSystem.GetBlockWithName("Alarm") as IMyTerminalBlock;
 
             LCDInput = GridTerminalSystem.GetBlockWithName("LcdInput") as IMyTextPanel;
             LCDOutput = GridTerminalSystem.GetBlockWithName("LcdOutput") as IMyTextPanel;
             LCDController = GridTerminalSystem.GetBlockWithName("LcdController") as IMyTextPanel;
             LCDError = GridTerminalSystem.GetBlockWithName("LcdError") as IMyTextPanel;
+            LCDTradelog = GridTerminalSystem.GetBlockWithName("LcdTradelog") as IMyTextPanel;
 
-            List<IMyTerminalBlock> inOutContainerList = new List<IMyTerminalBlock>();
+            sensor = GridTerminalSystem.GetBlockWithName("Sensor") as IMySensorBlock;
+
+            tradeLog = LCDTradelog.GetText();
+            if (string.IsNullOrEmpty(tradeLog)) tradeLog = "Trade log:\n";
+
+            List <IMyTerminalBlock> inOutContainerList = new List<IMyTerminalBlock>();
             var containers = GridTerminalSystem.GetBlockGroupWithName("InOut");
             containers.GetBlocks(inOutContainerList);
             var first = inOutContainerList.First() as IMyCargoContainer;
@@ -115,7 +122,6 @@ namespace SpaceEngineersSentiumShopManager
                 Output = last;
             }
 
-
             //Input = GridTerminalSystem.GetBlockWithName("ContainerInput") as IMyCargoContainer;
             //Output = GridTerminalSystem.GetBlockWithName("ContainerOutput") as IMyCargoContainer;
             Vault = GridTerminalSystem.GetBlockWithName("ContainerVault") as IMyCargoContainer;
@@ -129,10 +135,12 @@ namespace SpaceEngineersSentiumShopManager
 
         public void Main(string argument)
         {
-            LCDController.WriteText(GetMenuText(currentIndex));
-
             switch (argument)
             {
+                case "clearLog":
+                    tradeLog = string.Empty;
+                    LCDTradelog.WriteText(tradeLog);
+                    break;
                 case "trade":
                     Trade();
                     break;
@@ -140,21 +148,42 @@ namespace SpaceEngineersSentiumShopManager
                 case "up":
                     errorText = "";
                     if(currentIndex>0) currentIndex--;
+                    ShowInputInfo();
+                    ShowMenu();
                     break;
 
                 case "down":
                     errorText = "";
                     if (currentIndex < prices.Count-1) currentIndex++;
+                    ShowInputInfo();
+                    ShowMenu();
                     break;
             }
 
             ShowErrorLog();
             ShowInputInfo();
+            ShowMenu();
+        }
+
+        private void ShowMenu()
+        {
+            LCDController.WriteText(GetMenuText(currentIndex));
         }
 
         private void ShowErrorLog()
         {
-            LCDError.WriteText($"Ошибки:\n\n\n{errorText}");
+            if(errorText != string.Empty)
+            {
+                LCDError.WriteText($"Ошибки:\n\n\n{errorText}");
+            }
+            else
+            {
+                LCDError.WriteText($"\n\nДля совершения обмена\n\n" +
+                    $"------------------>\n\n" +
+                    $"выбери пункт в меню ниже\n" +
+                    $"|\n|\n|\n" +
+                    $"\\/");
+            }
         }
 
         private void ShowInputInfo()
@@ -210,7 +239,14 @@ namespace SpaceEngineersSentiumShopManager
                     inputInventory.TransferItemTo(vaultInventory, inputItem.Value); 
                     outputInventory.TransferItemFrom(vaultInventory, returnItem.Value, outputVolume);
 
-                    tradeLog += $"{amount} {sentiumName} -> {GetCurrentIngotName()} {outputVolume}\n";
+                    var entities = new List<MyDetectedEntityInfo>();
+                    sensor.DetectedEntities(entities);
+                    
+                    tradeLog += $"{DateTime.Now.ToString("yy.MM.dd-HH:mm")} : {amount} {sentiumName} -> " +
+                        $"{GetCurrentIngotName()} {outputVolume} [{entities.FirstOrDefault().EntityId}]\n";
+                    LCDTradelog.WriteText(tradeLog);
+
+                    MyInventoryItem aaa; 
                 }
                 
             }
