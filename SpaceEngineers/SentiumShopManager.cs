@@ -51,7 +51,8 @@ namespace SpaceEngineersSentiumShopManager
             {"Platinum", T2price },
 
             // Vanilla
-            {"Uranium", 50 },
+            {"Uranium", T2price },
+
             {"Iron", T1price },
             {"Gold", T1price },
             {"Cobalt", T1price },
